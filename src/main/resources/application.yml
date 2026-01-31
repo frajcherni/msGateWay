@@ -11,7 +11,7 @@ spring:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins: "http://localhost:4200"
+            allowedOrigins: "http://localhost"   # Angular front
             allowedMethods:
               - GET
               - POST
@@ -22,11 +22,11 @@ spring:
             allowCredentials: true
       routes:
         - id: auth-service
-          uri: http://localhost:8082
+          uri: http://authentification-service:8082  # <-- nom du container
           predicates:
             - Path=/auth/**
         
         - id: smartfarm-core
-          uri: http://localhost:8081
+          uri: http://smartfarm-backend:8081   # <-- nom du container
           predicates:
             - Path=/api/**
