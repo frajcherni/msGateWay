@@ -5,8 +5,9 @@ pipeline {
         DOCKER_HUB_USER = 'ahmedbelkahl'
         IMAGE_NAME = 'api-gateway'
         REGISTRY = "${DOCKER_HUB_USER}/${IMAGE_NAME}"
-        SONARQUBE = 'sonarqube' 
-        SONAR_LOGIN = 'squ_8f2f9c0cc9aa914b4fdbae3ca57f3c83d32f5df8' 
+        // Nom du serveur SonarQube configuré dans Jenkins (Administrer Jenkins > Système).
+        // Le token est stocké dans la configuration de ce serveur, jamais dans le code.
+        SONARQUBE = 'sonarqube'
     }
 
     stages {
@@ -18,19 +19,15 @@ pipeline {
 
         stage('Build & Test') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                sh 'mvn -B clean verify'
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
+                // withSonarQubeEnv fournit l'URL et le token (SONAR_HOST_URL / SONAR_AUTH_TOKEN)
                 withSonarQubeEnv("${SONARQUBE}") {
-                    sh """
-                        mvn sonar:sonar \
-                        -Dsonar.projectKey=api-gateway \
-                        -Dsonar.host.url=http://localhost:9000 \
-                        -Dsonar.login=${SONAR_LOGIN}
-                    """
+                    sh 'mvn -B sonar:sonar -Dsonar.projectKey=api-gateway'
                 }
             }
         }
@@ -50,6 +47,7 @@ pipeline {
 
     post {
         always {
+            junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
             cleanWs()
         }
     }

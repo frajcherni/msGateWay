@@ -1,32 +1,49 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
 
 spring:
   application:
     name: api-gateway
   cloud:
     gateway:
+      # Les services (Tomcat) ferment une connexion inactive après ~20 s. Sans cette limite, la gateway
+      # réutilise parfois une connexion déjà fermée et renvoie une erreur 500 ("Connection prematurely closed").
+      httpclient:
+        connect-timeout: 5000
+        response-timeout: 30s
+        pool:
+          max-idle-time: 10s
+          max-life-time: 60s
       default-filters:
         - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins: "http://localhost"   # Angular front
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - DELETE
-              - OPTIONS
+            # Origines autorisées (séparées par des virgules) : frontend Docker (port 80) et ng serve (4200)
+            allowedOrigins: ${CORS_ALLOWED_ORIGINS:http://localhost,http://localhost:4200}
+            allowedMethods: [GET, POST, PUT, DELETE, OPTIONS]
             allowedHeaders: "*"
             allowCredentials: true
       routes:
         - id: auth-service
-          uri: http://authentification-service:8082  # <-- nom du container
+          uri: ${AUTH_SERVICE_URL:http://localhost:8082}
           predicates:
             - Path=/auth/**
-        
         - id: smartfarm-core
-          uri: http://smartfarm-backend:8081   # <-- nom du container
+          uri: ${SMARTFARM_SERVICE_URL:http://localhost:8081}
           predicates:
             - Path=/api/**
+
+# Même secret que les services (variable JWT_SECRET). Valeur par défaut pour le développement local uniquement.
+jwt:
+  secret: ${JWT_SECRET:Z3Vuc2NoM1VzaVh4dGhHZmZVb2VwV3hpYWdZTnV3b3Q=}
+
+# Santé et métriques sur un port séparé (9080), réservé au réseau interne (Prometheus, Kubernetes) :
+# le port public 8080 ne les expose pas.
+management:
+  server:
+    port: ${MANAGEMENT_PORT:9080}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
